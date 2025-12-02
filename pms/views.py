@@ -1,4 +1,5 @@
 from django.db.models import F, Q, Count, Sum
+from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -146,21 +147,38 @@ class EditBookingView(View):
     # renders the booking edition form
     def get(self, request, pk):
         booking = Booking.objects.get(id=pk)
-        booking_form = BookingForm(prefix="booking", instance=booking)
-        customer_form = CustomerForm(prefix="customer", instance=booking.customer)
-        context = {"booking_form": booking_form, "customer_form": customer_form}
+        booking_form = BookingUpdateForm(prefix="booking", instance=booking)
+        context = {"booking_form": booking_form}
         return render(request, "edit_booking.html", context)
 
-    # updates the customer form
+    # updates the booking form
     @method_decorator(ensure_csrf_cookie)
     def post(self, request, pk):
-        booking = Booking.objects.get(id=pk)
-        customer_form = CustomerForm(
-            request.POST, prefix="customer", instance=booking.customer
+        query = request.POST.dict()
+        checkin = query["booking-checkin"]
+        checkout = query["booking-checkout"]
+        current_booking = Booking.objects.get(id=pk)
+        check_availability = (
+            Booking.objects.filter(
+                Q(checkin__lt=checkout) & Q(checkout__gt=checkin),
+                room=current_booking.room,
+            )
+            .exclude(state=Booking.DELETED)
+            .exclude(id=current_booking.id)
+            .exists()
         )
-        if customer_form.is_valid():
-            customer_form.save()
+        if not check_availability:
+            current_booking.checkin = checkin
+            current_booking.checkout = checkout
+            current_booking.save(update_fields=["checkin", "checkout"])
             return redirect("/")
+        else:
+            messages.error(
+                request, "No hay disponibilidad para las fechas seleccionadas."
+            )
+            booking_form = BookingUpdateForm(prefix="booking", instance=current_booking)
+            context = {"booking_form": booking_form}
+            return render(request, "edit_booking.html", context)
 
 
 class DashboardView(View):
