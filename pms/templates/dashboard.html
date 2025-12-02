@@ -5,6 +5,10 @@
 <div class="card">
     <h5 class="card-header">Hoy</h5>
     <div class="d-flex justify-content-evenly pt-5 pb-5">
+        <div class="card text-white p-3 card-customization" style="background-color: #990c2f;">
+            <h5 class="small">Porcentaje de ocupación</h5>
+            <h1 class="dashboard-value">{% if dashboard.occupancy == None %}0.00{% endif %} {{dashboard.occupancy|floatformat:2}} %</h1>
+        </div>
         <div class="card text-white p-3 card-customization" style="background-color: #1000ff;">
             <h5 class="small">Reservas hechas</h5>
             <h1 class="dashboard-value">{{dashboard.new_bookings}}</h1>
