@@ -32,7 +32,7 @@ document.querySelector("#id_checkout").addEventListener("change",(e)=>{
 
 function searchRoom() {
     const query = document.getElementById('roomSearch').value.toLowerCase();
-    const rooms = document.getElementById('rooms');
+    const rooms = document.querySelectorAll('.room');
     rooms.forEach(room => {
         const text = room.textContent.toLowerCase();
         if (text.includes(query)) {
