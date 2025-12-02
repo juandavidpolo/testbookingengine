@@ -28,3 +28,17 @@ document.querySelector("#id_checkout").addEventListener("change",(e)=>{
 //     checkout.setAttribute("min",tomorrow)
 //     checkout.focus()
 // })
+
+
+function searchRoom() {
+    const query = document.getElementById('roomSearch').value.toLowerCase();
+    const rooms = document.getElementById('rooms');
+    rooms.forEach(room => {
+        const text = room.textContent.toLowerCase();
+        if (text.includes(query)) {
+            room.style.display = '';
+        } else {
+            room.style.display = 'none';
+        }
+    });
+}
