@@ -284,3 +284,72 @@ class RoomSearchViewTest(TestCase):
 
         self.assertEqual(response.context["query"], post_data)
         self.assertEqual(response.context["data"]["total_days"], 2)
+
+
+class RoomDetailsViewTest(TestCase):
+    def setUp(self):
+        global_setUp(self)
+        self.room = Room.objects.first()
+        self.url = reverse("room_details", args=[self.room.id])
+
+    def test_get_returns_room_details(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "room_detail.html")
+        self.assertIn("room", response.context)
+        self.assertIn("bookings", response.context)
+        self.assertEqual(response.context["room"], self.room)
+        self.assertQuerySetEqual(
+            response.context["bookings"],
+            list(self.room.booking_set.all()),
+            transform=lambda x: x,
+        )
+
+
+class RoomsViewTest(TestCase):
+    def setUp(self):
+        global_setUp(self)
+        self.url = reverse("rooms")
+
+    @patch("django.contrib.staticfiles.storage.staticfiles_storage.url")
+    def test_get_returns_rooms_list(self, mock_static_url):
+        mock_static_url.side_effect = lambda path: f"/static/{path}"
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "rooms.html")
+        self.assertIn("rooms", response.context)
+        rooms = Room.objects.all().values("name", "room_type__name", "id")
+        self.assertEqual(list(response.context["rooms"]), list(rooms))
+
+
+class EditCustomerViewTest(TestCase):
+    def setUp(self):
+        global_setUp(self)
+
+        self.customer = Customer.objects.first()
+        self.url = reverse("edit_customer", args=[self.customer.id])
+
+    def test_get_renders_customer_form(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "edit_customer.html")
+        self.assertIn("customer_form", response.context)
+        form = response.context["customer_form"]
+        self.assertIsInstance(form, CustomerForm)
+        self.assertEqual(form.instance, self.customer)
+
+    def test_post_updates_customer_and_redirects(self):
+        data = {
+            "customer-name": "Nuevo Nombre",
+            "customer-email": "nuevo@example.com",
+            "customer-phone": "1112223333",
+        }
+
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/")
+        updated = Customer.objects.get(id=self.customer.id)
+        self.assertEqual(updated.name, "Nuevo Nombre")
+        self.assertEqual(updated.email, "nuevo@example.com")
+        self.assertEqual(updated.phone, "1112223333")
