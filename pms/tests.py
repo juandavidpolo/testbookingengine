@@ -353,3 +353,87 @@ class EditCustomerViewTest(TestCase):
         self.assertEqual(updated.name, "Nuevo Nombre")
         self.assertEqual(updated.email, "nuevo@example.com")
         self.assertEqual(updated.phone, "1112223333")
+
+
+class DeleteBookingViewTest(TestCase):
+    def setUp(self):
+        global_setUp(self)
+        self.booking = Booking.objects.first()
+        self.url = reverse("delete_booking", args=[self.booking.id])
+
+    def test_get_renders_delete_booking_template(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "delete_booking.html")
+        self.assertIn("booking", response.context)
+        self.assertEqual(response.context["booking"], self.booking)
+
+    def test_post_sets_booking_state_to_deleted(self):
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/")
+        updated = Booking.objects.get(id=self.booking.id)
+        self.assertEqual(updated.state, "DEL")
+
+
+class EditBookingViewGetTest(TestCase):
+    def setUp(self):
+        global_setUp(self)
+        self.booking = Booking.objects.first()
+        self.url = reverse("edit_booking", args=[self.booking.id])
+
+    def test_get_renders_edit_booking_template_with_form(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "edit_booking.html")
+        self.assertIn("booking_form", response.context)
+        form = response.context["booking_form"]
+        self.assertIsInstance(form, BookingUpdateForm)
+        self.assertEqual(form.instance, self.booking)
+
+
+class EditBookingViewPostSuccessTest(TestCase):
+    def setUp(self):
+        global_setUp(self)
+        self.booking = Booking.objects.first()
+        self.url = reverse("edit_booking", args=[self.booking.id])
+
+    def test_post_updates_booking_when_no_conflict(self):
+        data = {
+            "booking-checkin": "2030-01-10",
+            "booking-checkout": "2030-01-15",
+        }
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/")
+        updated = Booking.objects.get(id=self.booking.id)
+        self.assertEqual(str(updated.checkin), "2030-01-10")
+        self.assertEqual(str(updated.checkout), "2030-01-15")
+
+
+class EditBookingViewPostConflictTest(TestCase):
+    def setUp(self):
+        global_setUp(self)
+        self.booking = Booking.objects.first()
+        self.url = reverse("edit_booking", args=[self.booking.id])
+
+        self.conflicting = Booking.objects.create(
+            room=self.booking.room,
+            customer=self.booking.customer,
+            checkin="2030-01-10",
+            checkout="2030-01-20",
+            state=Booking.NEW,
+            guests=2,
+            total=200,
+        )
+
+    def test_post_shows_error_when_dates_conflict(self):
+        data = {
+            "booking-checkin": "2030-01-12",
+            "booking-checkout": "2030-01-18",
+        }
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "edit_booking.html")
+        original = Booking.objects.get(id=self.booking.id)
+        self.assertNotEqual(str(original.checkin), "2030-01-12")
