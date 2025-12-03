@@ -1,0 +1,15 @@
+*/__pycache__/**
+.idea/
+
+# Virtual environments
+venv/
+env/
+.pvenv/
+.pms/
+*/venv/
+*/env/
+*/.venv/
+
+# pipenv
+Pipfile.lock
+.pipenv/

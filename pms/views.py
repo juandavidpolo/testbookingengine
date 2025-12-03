@@ -181,6 +181,25 @@ class EditBookingView(View):
             return render(request, "edit_booking.html", context)
 
 
+class EditCustomerView(View):
+    # renders the customer edition form
+    def get(self, request, pk):
+        customer = Customer.objects.get(id=pk)
+        customer_form = CustomerForm(prefix="customer", instance=customer)
+        context = {"customer_form": customer_form}
+        return render(request, "edit_customer.html", context)
+
+    # updates the customer form
+    @method_decorator(ensure_csrf_cookie)
+    def post(self, request, pk):
+        query = request.POST.dict()
+        name = query["customer-name"]
+        email = query["customer-email"]
+        phone = query["customer-phone"]
+        Customer.objects.filter(id=pk).update(name=name, email=email, phone=phone)
+        return redirect("/")
+
+
 class DashboardView(View):
     def get(self, request):
         from datetime import date, time, datetime

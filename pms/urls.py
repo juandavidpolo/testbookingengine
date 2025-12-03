@@ -13,6 +13,9 @@ urlpatterns = [
         views.DeleteBookingView.as_view(),
         name="delete_booking",
     ),
+    path(
+        "customer/<str:pk>/edit", views.EditCustomerView.as_view(), name="edit_customer"
+    ),
     path("rooms/", views.RoomsView.as_view(), name="rooms"),
     path("room/<str:pk>/", views.RoomDetailsView.as_view(), name="room_details"),
     path("dashboard/", views.DashboardView.as_view(), name="dashboard"),

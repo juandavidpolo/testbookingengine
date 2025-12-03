@@ -6,7 +6,7 @@
 <form action="{% url 'edit_booking' pk=booking_form.instance.id %}" method="post">
     {% csrf_token %}
     {% for field in booking_form %}
-        <div class="row">
+        <div class="row pb-2">
             <div class="col-md-2">
                 {{ field.label_tag }}
             </div>
@@ -25,7 +25,7 @@
         {% endif %}
     </div>
     <a class="btn btn-outline-primary" href="{% url 'home' %}">Volver</a>
-    <button class="btn btn-primary" type="submit">Guardar datos</button>
+    <button class="btn btn-primary" type="submit">Actualizar</button>
 </form>
 
 {% endblock content %}
