@@ -1,2 +1,33 @@
 */__pycache__/**
 .idea/
+*/__pycache__/**
+.idea/
+# Archivos compilados
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribución/packaging
+build/
+dist/
+*.egg-info/
+
+# Entornos virtuales de Python
+venv/
+.venv/
+env/
+.env/
+ENV/
+virtual/
+.virtualenv/
+.venv*/
+venv*/
+
+# Archivos de configuración de virtualenv
+pyvenv.cfg
+
+#otros
+/chapp_pms
+Scripts
+CACHEDIR.TAG
+lib
