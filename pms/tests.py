@@ -1,17 +1,17 @@
+from unittest.mock import patch, MagicMock
 from django.test import TestCase, Client
 from pms.models import Booking, Room, Customer, Room_type
-from pms.views import DashboardView
+from django.urls import reverse
 from django.db.models import Sum
 from django.utils.timezone import now
-import datetime
+from .forms import *
+from unittest.mock import patch
 
-# TODO
-# Comment line when STATICFILES_STORAGE is defined in
-# chapp/settings.py To able to run the tests successfully
+from datetime import datetime, timedelta, date, time
 
 
 def global_setUp(self):
-    today = datetime.date.today()
+    today = date.today()
     self.client = Client()
     # create room types
     Room_type.objects.create(id=1, name="Simple", price=20, max_guests=1)
@@ -56,7 +56,7 @@ def global_setUp(self):
     # Create bookings
     Booking.objects.create(
         checkin=today,
-        checkout=today + datetime.timedelta(days=2),
+        checkout=today + timedelta(days=2),
         created=now(),
         state="NEW",
         guests=1,
@@ -66,7 +66,7 @@ def global_setUp(self):
         code="ABC123",
     )
     Booking.objects.create(
-        checkin=today - datetime.timedelta(days=1),
+        checkin=today - timedelta(days=1),
         checkout=today,
         created=now(),
         state="DEL",
@@ -77,8 +77,8 @@ def global_setUp(self):
         code="ABC124A",
     )
     Booking.objects.create(
-        checkin=today - datetime.timedelta(days=1),
-        checkout=today + datetime.timedelta(days=3),
+        checkin=today - timedelta(days=1),
+        checkout=today + timedelta(days=3),
         created=now(),
         state="NEW",
         guests=1,
@@ -92,24 +92,21 @@ def global_setUp(self):
 class DashboardViewTest(TestCase):
     setUp = global_setUp
 
-    def test_dashboard_view(self):
+    @patch("django.contrib.staticfiles.storage.staticfiles_storage.url")
+    def test_dashboard_view(self, mock_static_url):
         response = self.client.get("/dashboard/")
         self.assertEqual(response.status_code, 200)
         dashboard = response.context["dashboard"]
 
-        today = datetime.date.today()
-        today_min = datetime.datetime.combine(today, datetime.time.min)
-        today_max = datetime.datetime.combine(today, datetime.time.max)
-
-        # check new bookings
+        today = date.today()
+        today_min = datetime.combine(today, time.min)
+        today_max = datetime.combine(today, time.max)
         expected_new_bookings = (
             Booking.objects.filter(created__range=(today_min, today_max))
             .values("id")
             .count()
         )
         self.assertEqual(dashboard["new_bookings"], expected_new_bookings)
-
-        # check incoming guests
         expected_incoming = (
             Booking.objects.filter(checkin=today)
             .exclude(state="DEL")
@@ -118,7 +115,6 @@ class DashboardViewTest(TestCase):
         )
         self.assertEqual(dashboard["incoming_guests"], expected_incoming)
 
-        # check outcoming guests
         expected_outcoming = (
             Booking.objects.filter(checkout=today)
             .exclude(state="DEL")
@@ -127,7 +123,6 @@ class DashboardViewTest(TestCase):
         )
         self.assertEqual(dashboard["outcoming_guests"], expected_outcoming)
 
-        # check occupancy
         expected_occupancy = (
             Booking.objects.filter(checkin__lte=today, checkout__gte=today)
             .exclude(state="DEL")
@@ -136,10 +131,156 @@ class DashboardViewTest(TestCase):
         ) * 100
         self.assertEqual(dashboard["occupancy"], expected_occupancy)
 
-        # check invoiced
         expected_invoiced = (
             Booking.objects.filter(created__range=(today_min, today_max))
             .exclude(state="DEL")
             .aggregate(Sum("total"))
         )
         self.assertEqual(dashboard["invoiced"], expected_invoiced)
+
+
+class BookingSearchViewTest(TestCase):
+    setUp = global_setUp
+
+    def setUp(self):
+        global_setUp(self)
+        self.url = reverse("booking_search")
+
+    def test_redirect_when_no_filter(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/")
+
+    @patch("django.contrib.staticfiles.storage.staticfiles_storage.url")
+    def test_filter_matches_code(self, mock_static_url):
+        mock_static_url.side_effect = lambda path: f"/static/{path}"
+        response = self.client.get(self.url, {"filter": "ABC"})
+        self.assertEqual(response.status_code, 200)
+        bookings = response.context["bookings"]
+        self.assertEqual(len(bookings), 3)
+        self.assertIn("ABC123", [b.code for b in bookings])
+        self.assertIn("ABC124X", [b.code for b in bookings])
+
+    @patch("django.contrib.staticfiles.storage.staticfiles_storage.url")
+    def test_filter_matches_customer_name(self, mock_static_url):
+        mock_static_url.side_effect = lambda path: f"/static/{path}"
+        response = self.client.get(self.url, {"filter": "test customer 1"})
+        self.assertEqual(response.status_code, 200)
+
+        bookings = response.context["bookings"]
+        self.assertEqual(len(bookings), 1)
+        self.assertEqual(bookings[0].customer.name, "test customer 1")
+
+    @patch("django.contrib.staticfiles.storage.staticfiles_storage.url")
+    def test_filter_no_matches(self, mock_static_url):
+        mock_static_url.side_effect = lambda path: f"/static/{path}"
+        response = self.client.get(self.url, {"filter": "NOPE"})
+        self.assertEqual(response.status_code, 200)
+
+        bookings = response.context["bookings"]
+        self.assertEqual(len(bookings), 0)
+
+    @patch("django.contrib.staticfiles.storage.staticfiles_storage.url")
+    def test_uses_correct_template(self, mock_static_url):
+        mock_static_url.side_effect = lambda path: f"/static/{path}"
+        response = self.client.get(self.url, {"filter": "ABC"})
+        self.assertTemplateUsed(response, "home.html")
+
+    @patch("django.contrib.staticfiles.storage.staticfiles_storage.url")
+    def test_context_contains_expected_items(self, mock_static_url):
+        mock_static_url.side_effect = lambda path: f"/static/{path}"
+        response = self.client.get(self.url, {"filter": "ABC"})
+
+        self.assertIn("bookings", response.context)
+        self.assertIn("form", response.context)
+        self.assertIn("filter", response.context)
+        self.assertIsInstance(response.context["form"], RoomSearchForm)
+        self.assertTrue(response.context["filter"])
+
+
+class HomeViewTest(TestCase):
+    def setUp(self):
+        global_setUp(self)
+        self.url = reverse("home")
+
+    @patch("django.contrib.staticfiles.storage.staticfiles_storage.url")
+    def test_home_view_status_code_and_template(self, mock_static_url):
+        mock_static_url.side_effect = lambda path: f"/static/{path}"
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "home.html")
+
+    @patch("django.contrib.staticfiles.storage.staticfiles_storage.url")
+    def test_home_view_context_contains_bookings(self, mock_static_url):
+        mock_static_url.side_effect = lambda path: f"/static/{path}"
+
+        response = self.client.get(self.url)
+        self.assertIn("bookings", response.context)
+        bookings = response.context["bookings"]
+        self.assertEqual(len(bookings), 3)
+
+    @patch("django.contrib.staticfiles.storage.staticfiles_storage.url")
+    def test_home_view_empty_bookings(self, mock_static_url):
+        mock_static_url.side_effect = lambda path: f"/static/{path}"
+        Booking.objects.all().delete()
+        response = self.client.get(self.url)
+        bookings = response.context["bookings"]
+        self.assertEqual(len(bookings), 0)
+
+
+class RoomSearchViewTest(TestCase):
+    def setUp(self):
+        global_setUp(self)
+        self.url = reverse("search")
+
+    @patch("django.contrib.staticfiles.storage.staticfiles_storage.url")
+    def test_get_returns_form(self, mock_static_url):
+        mock_static_url.side_effect = lambda path: f"/static/{path}"
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "booking_search_form.html")
+        self.assertIn("form", response.context)
+        self.assertIsInstance(response.context["form"], RoomSearchForm)
+
+    @patch("django.contrib.staticfiles.storage.staticfiles_storage.url")
+    @patch("pms.models.Room.objects")
+    def test_post_returns_search_results(self, mock_rooms_objects, mock_static_url):
+        mock_static_url.side_effect = lambda path: f"/static/{path}"
+
+        mock_room_instance = MagicMock()
+        mock_room_instance.name = "Room 101"
+        mock_room_instance.room_type__max_guests = 2
+        mock_room_instance.room_type__price = 100
+
+        mock_qs = MagicMock()
+        mock_qs.exclude.return_value.annotate.return_value.order_by.return_value = [
+            mock_room_instance
+        ]
+        mock_rooms_objects.filter.return_value = mock_qs
+
+        mock_total_qs = MagicMock()
+        mock_total_qs.exclude.return_value.annotate.return_value.order_by.return_value = [
+            {"room_type__name": "Standard", "room_type": 1, "total": 2}
+        ]
+        mock_rooms_objects.filter.return_value = mock_total_qs
+
+        checkin = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        checkout = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
+        guests = "2"
+
+        post_data = {"checkin": checkin, "checkout": checkout, "guests": guests}
+        response = self.client.post(self.url, post_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "search.html")
+
+        self.assertIn("rooms", response.context)
+        self.assertIn("total_rooms", response.context)
+        self.assertIn("query", response.context)
+        self.assertIn("url_query", response.context)
+        self.assertIn("data", response.context)
+
+        self.assertEqual(response.context["query"], post_data)
+        self.assertEqual(response.context["data"]["total_days"], 2)
