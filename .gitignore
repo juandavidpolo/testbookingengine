@@ -3,6 +3,7 @@ __pycache__
 .idea/
 */__pycache__/**
 .idea/
+
 # Archivos compilados
 __pycache__/
 *.py[cod]
