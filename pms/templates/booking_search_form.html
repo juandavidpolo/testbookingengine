@@ -5,7 +5,7 @@
 <form action="{% url 'search'%}" method="POST">
     {% csrf_token%}
     {% for field in form %}
-    <div class="row">
+    <div class="row pb-2">
         <div class="col-md-2">{{field.label_tag}}</div>
         <div class="col-md">{{field}}</div>
     </div>

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from django import forms
 from django.forms import ModelForm
 
@@ -12,17 +12,28 @@ class RoomSearchForm(ModelForm):
         labels = {"guests": "Huéspedes"}
         widgets = {
             "checkin": forms.DateInput(
-                attrs={"type": "date", "min": datetime.today().strftime("%Y-%m-%d")}
+                attrs={
+                    "id": "id_checkin",
+                    "type": "date",
+                    "min": datetime.today().strftime("%Y-%m-%d"),
+                    "value": datetime.today().strftime("%Y-%m-%d"),
+                }
             ),
             "checkout": forms.DateInput(
                 attrs={
+                    "id": "id_checkout",
                     "type": "date",
                     "max": datetime.today()
                     .replace(month=12, day=31)
                     .strftime("%Y-%m-%d"),
+                    "value": (datetime.today() + timedelta(days=1)).strftime(
+                        "%Y-%m-%d"
+                    ),
                 }
             ),
-            "guests": forms.DateInput(attrs={"type": "number", "min": 1, "max": 4}),
+            "guests": forms.DateInput(
+                attrs={"type": "number", "min": 1, "max": 4, "value": 1, "step": 1}
+            ),
         }
 
 
