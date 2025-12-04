@@ -1,23 +1,31 @@
 {% extends "main.html"%}
 
 {% block content %}
-<h1>Editar datos de contacto</h1>
-<form action="" method="post">
+<h1>Editar reserva</h1>
 
-    {% csrf_token%}
-    {% for field in customer_form %}
-    <div class="row">
-        <div class="col-md-2">
-            {{field.label_tag}}
+<form action="{% url 'edit_booking' pk=booking_form.instance.id %}" method="post">
+    {% csrf_token %}
+    {% for field in booking_form %}
+        <div class="row">
+            <div class="col-md-2">
+                {{ field.label_tag }}
+            </div>
+            <div class="col">
+                {{ field }}
+            </div>
         </div>
-        <div class="col">
-            {{field}}
-        </div>
-    </div>
     {% endfor %}
+    <div class="mb-3 pb-1 pt-2">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-danger" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
     <a class="btn btn-outline-primary" href="{% url 'home' %}">Volver</a>
     <button class="btn btn-primary" type="submit">Guardar datos</button>
 </form>
 
-
-{% endblock content%}
+{% endblock content %}
